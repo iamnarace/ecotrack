@@ -44,8 +44,8 @@ export const REGIONAL_PRESETS: Record<RegionPresetId, RegionalEmissionPreset> = 
     publicationYear: '2024',
     sourceAuthority:
       'US Environmental Protection Agency (EPA) GHG Emission Factors Hub & eGRID 2024',
-    gridElectricityKgPerKwh: 0.386,
-    carPetrolKgPerKm: 0.249,
+    gridElectricityKgPerKwh: 0.352,
+    carPetrolKgPerKm: 0.19,
     evConsumptionKwhPerKm: 0.195,
     publicTransitKgPerKm: 0.058,
     naturalGasKgPerKwh: 0.181,
@@ -58,7 +58,7 @@ export const REGIONAL_PRESETS: Record<RegionPresetId, RegionalEmissionPreset> = 
     publicationYear: '2024',
     sourceAuthority:
       'European Environment Agency (EEA) Greenhouse Gas Emission Intensity & EC Joint Research Centre 2024',
-    gridElectricityKgPerKwh: 0.251,
+    gridElectricityKgPerKwh: 0.21,
     carPetrolKgPerKm: 0.164,
     evConsumptionKwhPerKm: 0.175,
     publicTransitKgPerKm: 0.033,
@@ -72,11 +72,11 @@ export const REGIONAL_PRESETS: Record<RegionPresetId, RegionalEmissionPreset> = 
     publicationYear: '2024',
     sourceAuthority:
       'Australian Dept. of Climate Change, Energy, the Environment and Water (DCCEEW) National Greenhouse Accounts Factors 2024',
-    gridElectricityKgPerKwh: 0.63,
+    gridElectricityKgPerKwh: 0.65,
     carPetrolKgPerKm: 0.198,
     evConsumptionKwhPerKm: 0.185,
     publicTransitKgPerKm: 0.048,
-    naturalGasKgPerKwh: 0.185,
+    naturalGasKgPerKwh: 0.186,
   },
 };
 
@@ -101,10 +101,17 @@ export interface ActivityScenarioInput {
   compostsOrganicWaste: boolean;
 }
 
+export type EmissionFactorClassification =
+  | 'Regional Inventory Average'
+  | 'Derived Operational Estimate'
+  | 'Global Lifecycle Estimate';
+
 export interface EmissionFactorCitation {
   id: string;
   activity: string;
   geographicOrigin: string;
+  factorType: EmissionFactorClassification;
+  publicationYear: string;
   factorValue: string;
   unit: string;
   sourceReference: string;
@@ -190,15 +197,19 @@ export function getCitationTableForRegion(
       id: 'ef-car',
       activity: 'Passenger Car (Petrol / Gasoline)',
       geographicOrigin: preset.geographicOrigin,
+      factorType: 'Regional Inventory Average',
+      publicationYear: preset.publicationYear,
       factorValue: preset.carPetrolKgPerKm.toFixed(3),
       unit: 'kg CO2e / km',
       sourceReference: `${preset.sourceAuthority} (${preset.publicationYear})`,
-      notes: 'Average passenger petrol vehicle tailpipe combustion.',
+      notes: 'Average passenger petrol vehicle direct tailpipe operational combustion.',
     },
     {
       id: 'ef-ev',
       activity: 'Battery Electric Vehicle (BEV)',
       geographicOrigin: preset.geographicOrigin,
+      factorType: 'Derived Operational Estimate',
+      publicationYear: preset.publicationYear,
       factorValue: `${evFactorAtActiveRenew} (grid base: ${evFactorAtZeroRenew})`,
       unit: 'kg CO2e / km',
       sourceReference: `${preset.sourceAuthority} (${preset.publicationYear})`,
@@ -208,6 +219,8 @@ export function getCitationTableForRegion(
       id: 'ef-transit',
       activity: 'Public Transit (Rail & Bus)',
       geographicOrigin: preset.geographicOrigin,
+      factorType: 'Regional Inventory Average',
+      publicationYear: preset.publicationYear,
       factorValue: preset.publicTransitKgPerKm.toFixed(3),
       unit: 'kg CO2e / passenger-km',
       sourceReference: `${preset.sourceAuthority} (${preset.publicationYear})`,
@@ -217,37 +230,67 @@ export function getCitationTableForRegion(
       id: 'ef-elec',
       activity: 'Household Grid Electricity (Unblended Base)',
       geographicOrigin: preset.geographicOrigin,
+      factorType: 'Regional Inventory Average',
+      publicationYear: preset.publicationYear,
       factorValue: preset.gridElectricityKgPerKwh.toFixed(3),
       unit: 'kg CO2e / kWh',
       sourceReference: `${preset.sourceAuthority} (${preset.publicationYear})`,
-      notes: `Blended linearly with lifecycle renewable electricity (${EMISSION_FACTORS.renewableElectricityKgPerKwh.toFixed(2)} kg CO2e/kWh) using your renewable % setting.`,
+      notes: `Scope 2 location-based generation average${regionId === 'au' ? ' (national Scope 2 average; Australian states range from 0.15 in TAS to 0.77 in VIC)' : ''}. Blended linearly with lifecycle renewable electricity (${EMISSION_FACTORS.renewableElectricityKgPerKwh.toFixed(2)} kg CO2e/kWh) using your renewable % setting.`,
+    },
+    {
+      id: 'ef-renew',
+      activity: 'Accredited Renewable Electricity (Lifecycle)',
+      geographicOrigin: 'Global Lifecycle Meta-Analysis (IPCC WGIII)',
+      factorType: 'Global Lifecycle Estimate',
+      publicationYear: '2022',
+      factorValue: EMISSION_FACTORS.renewableElectricityKgPerKwh.toFixed(3),
+      unit: 'kg CO2e / kWh',
+      sourceReference: 'IPCC AR6 Working Group III Annex III (2022)',
+      notes: 'Amortized lifecycle infrastructure emissions across utility-scale wind (~11 g/kWh) and solar PV (~41 g/kWh).',
     },
     {
       id: 'ef-gas',
       activity: 'Mains Natural Gas Heating',
       geographicOrigin: preset.geographicOrigin,
+      factorType: 'Regional Inventory Average',
+      publicationYear: preset.publicationYear,
       factorValue: preset.naturalGasKgPerKwh.toFixed(3),
       unit: 'kg CO2e / kWh',
       sourceReference: `${preset.sourceAuthority} (${preset.publicationYear})`,
-      notes: 'Residential stationary natural gas combustion.',
+      notes: 'Residential stationary pipeline natural gas combustion per kWh gross/LHV.',
     },
     {
       id: 'ef-flight',
       activity: 'Commercial Aviation (Short / Long Haul)',
       geographicOrigin: 'International / Global Aviation (Transboundary)',
+      factorType: 'Derived Operational Estimate',
+      publicationYear: '2024',
       factorValue: '150 / 195',
       unit: 'kg CO2e / flight hour',
       sourceReference: 'ICAO Carbon Emissions Calculator & UK DESNZ Aviation Methodology (2024)',
-      notes: 'Economy class seating assuming ~800 km/h block speed (global transboundary factor).',
+      notes: 'Economy class seating assuming ~750–850 km/h block speed including radiative forcing multiplier.',
     },
     {
       id: 'ef-diet',
       activity: 'Dietary Food Supply Chain',
       geographicOrigin: 'Global Meta-Analysis (119 Countries)',
+      factorType: 'Global Lifecycle Estimate',
+      publicationYear: '2018 / 2022',
       factorValue: '950 – 2,500',
       unit: 'kg CO2e / person / year',
       sourceReference: 'Poore & Nemecek (2018), Science / IPCC AR6 WGIII (2022)',
-      notes: 'Order-of-magnitude global food system estimate by dietary pattern; not a region-specific farm audit.',
+      notes: 'Order-of-magnitude cradle-to-retail food system lifecycle estimate by dietary pattern; not a region-specific farm audit.',
+    },
+    {
+      id: 'ef-waste',
+      activity: 'Residential Waste, Recycling & Composting',
+      geographicOrigin: 'Global / OECD Municipal Solid Waste Estimate',
+      factorType: 'Global Lifecycle Estimate',
+      publicationYear: '2024',
+      factorValue: '380 (−110 recycle, −90 compost)',
+      unit: 'kg CO2e / person / year',
+      sourceReference: 'UK DESNZ / US EPA WARM Municipal Solid Waste Lifecycle Estimates (2024)',
+      notes: 'Baseline per-capita landfill methane & processing footprint with avoided-emission credits for material recycling and organic composting.',
     },
   ];
 }
@@ -490,10 +533,19 @@ export function buildMarkdownReport(
   const regionPreset =
     REGIONAL_PRESETS[baseResult.regionId] ?? REGIONAL_PRESETS.uk;
   const deltaKg = baseResult.perCapitaAnnualKg - targetResult.perCapitaAnnualKg;
+  const deltaTotalKg = baseResult.totalAnnualKg - targetResult.totalAnnualKg;
   const deltaPct =
     baseResult.perCapitaAnnualKg > 0
       ? Math.round((deltaKg / baseResult.perCapitaAnnualKg) * 1000) / 10
       : 0;
+  const formattedPerCapitaDelta =
+    deltaKg >= 0
+      ? `-${deltaKg.toLocaleString()} kg (-${deltaPct}%)`
+      : `+${Math.abs(deltaKg).toLocaleString()} kg (+${Math.abs(deltaPct)}%)`;
+  const formattedTotalDelta =
+    deltaTotalKg >= 0
+      ? `-${deltaTotalKg.toLocaleString()} kg`
+      : `+${Math.abs(deltaTotalKg).toLocaleString()} kg`;
 
   return `# EcoTrack Sustainability Scenario Assessment Report
 
@@ -507,8 +559,8 @@ Primary Regional Source: ${regionPreset.sourceAuthority}
 
 | Metric | ${baseline.name} | ${target.name} | Net Change |
 | :--- | :---: | :---: | :---: |
-| **Per-Capita Footprint** | **${baseResult.perCapitaAnnualKg.toLocaleString()} kg CO2e/yr** | **${targetResult.perCapitaAnnualKg.toLocaleString()} kg CO2e/yr** | **-${deltaKg.toLocaleString()} kg (${deltaPct}%)** |
-| **Total Household (${baseline.householdSize}p)** | ${baseResult.totalAnnualKg.toLocaleString()} kg CO2e/yr | ${targetResult.totalAnnualKg.toLocaleString()} kg CO2e/yr | -${(baseResult.totalAnnualKg - targetResult.totalAnnualKg).toLocaleString()} kg |
+| **Per-Capita Footprint** | **${baseResult.perCapitaAnnualKg.toLocaleString()} kg CO2e/yr** | **${targetResult.perCapitaAnnualKg.toLocaleString()} kg CO2e/yr** | **${formattedPerCapitaDelta}** |
+| **Total Household (${baseline.householdSize}p)** | ${baseResult.totalAnnualKg.toLocaleString()} kg CO2e/yr | ${targetResult.totalAnnualKg.toLocaleString()} kg CO2e/yr | ${formattedTotalDelta} |
 | **Effective Electricity Factor** | ${baseResult.effectiveElectricityKgPerKwh.toFixed(3)} kg CO2e/kWh | ${targetResult.effectiveElectricityKgPerKwh.toFixed(3)} kg CO2e/kWh | — |
 | **Effective BEV Factor** | ${baseResult.effectiveEvKgPerKm.toFixed(3)} kg CO2e/km | ${targetResult.effectiveEvKgPerKm.toFixed(3)} kg CO2e/km | — |
 

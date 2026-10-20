@@ -97,7 +97,7 @@ describe('EcoTrack Carbon Footprint Simulator & Methodology Tests', () => {
       calculateEffectiveElectricityFactor('uk', 0);
     expect(calculateEvKgPerKm('uk', 0)).toBeCloseTo(expectedUkEvZero, 5);
 
-    // 2. Higher-carbon regional grid (Australia 0.630 kg/kWh vs UK 0.207 kg/kWh) yields higher unblended EV emissions
+    // 2. Higher-carbon regional grid (Australia 0.650 kg/kWh vs UK 0.207 kg/kWh) yields higher unblended EV emissions
     expect(auGridZeroRenew.effectiveEvKgPerKm).toBeGreaterThan(
       ukGridZeroRenew.effectiveEvKgPerKm
     );
@@ -106,17 +106,24 @@ describe('EcoTrack Carbon Footprint Simulator & Methodology Tests', () => {
     );
   });
 
-  it('documents explicit geographic origins for every emission factor and updates UI when switching regional presets', () => {
+  it('documents explicit geographic origins and factor classifications for every emission factor and updates UI when switching regional presets', () => {
     for (const regionId of ['uk', 'us', 'eu', 'au'] as const) {
       const citations = getCitationTableForRegion(regionId, 25);
-      expect(citations.length).toBeGreaterThanOrEqual(7);
+      expect(citations).toHaveLength(9);
       for (const row of citations) {
         expect(row.geographicOrigin.length).toBeGreaterThan(5);
         expect(row.sourceReference.length).toBeGreaterThan(10);
+        expect(row.publicationYear.length).toBeGreaterThanOrEqual(4);
+        expect([
+          'Regional Inventory Average',
+          'Derived Operational Estimate',
+          'Global Lifecycle Estimate',
+        ]).toContain(row.factorType);
       }
       // Regional grid & transport rows carry the selected preset's exact geographic origin
       const gridRow = citations.find((r) => r.id === 'ef-elec');
       expect(gridRow?.geographicOrigin).toBe(REGIONAL_PRESETS[regionId].geographicOrigin);
+      expect(gridRow?.factorType).toBe('Regional Inventory Average');
     }
 
     render(<App />);
@@ -128,12 +135,26 @@ describe('EcoTrack Carbon Footprint Simulator & Methodology Tests', () => {
     const auBaselineText = screen.getByTestId('baseline-total').textContent;
     expect(auBaselineText).not.toBe(ukBaselineText);
 
-    // Switch to Methodology & Citations and verify explicit Geographic Origin column & Australian NGA citation
+    // Switch to Methodology & Citations and verify explicit Geographic Origin & Factor Type columns
     fireEvent.click(screen.getByRole('button', { name: /Methodology & Citations/i }));
     expect(screen.getByText(/Geographic Origin/i)).toBeInTheDocument();
+    expect(screen.getByText(/Factor Type/i)).toBeInTheDocument();
     expect(
       screen.getAllByText(/Australia \(National Electricity Market & National Inventory\)/i)
         .length
     ).toBeGreaterThan(0);
+  });
+
+  it('formats Markdown report deltas cleanly without double negatives when target emissions exceed baseline', () => {
+    const lowBaseRes = calculateScenarioFootprint(TARGET_SCENARIO, 'uk');
+    const highTargetRes = calculateScenarioFootprint(BASELINE_SCENARIO, 'uk');
+    const mdIncrease = buildMarkdownReport(
+      TARGET_SCENARIO,
+      BASELINE_SCENARIO,
+      lowBaseRes,
+      highTargetRes
+    );
+    expect(mdIncrease).not.toMatch(/--\d/);
+    expect(mdIncrease).toMatch(/\+\d[\d,]* kg \(\+\d+(\.\d+)?%\)/);
   });
 });

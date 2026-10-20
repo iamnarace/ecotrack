@@ -83,14 +83,15 @@ export function App() {
         : JSON.stringify(
             {
               generatedAt: new Date().toISOString(),
+              regionPreset: activeRegionPreset,
               disclaimer:
-                'Educational estimates based on published UK DESNZ, US EPA, and IPCC AR6 average emission factors.',
+                'Educational estimates based on published UK DESNZ, US EPA, EEA, Australian DCCEEW NGA, ICAO, and IPCC AR6 average emission factors.',
               baselineScenario: {
-                inputs: baseline,
+                inputs: { ...baseline, regionId },
                 resultsKgCo2e: baseFootprint,
               },
               targetScenario: {
-                inputs: target,
+                inputs: { ...target, regionId },
                 resultsKgCo2e: targetFootprint,
               },
               netAnnualReductionPerCapitaKg: annualSavingKg,
@@ -330,8 +331,9 @@ export function App() {
               <TrendingDown className="w-4 h-4 text-teal-300" />
             </div>
             <p className="font-mono text-2xl font-bold mt-1.5">
-              {annualSavingKg >= 0 ? '-' : '+'}
-              {Math.abs(annualSavingKg).toLocaleString()} kg CO₂e ({savingPercent}%)
+              {annualSavingKg >= 0
+                ? `-${annualSavingKg.toLocaleString()} kg CO₂e (-${savingPercent}%)`
+                : `+${Math.abs(annualSavingKg).toLocaleString()} kg CO₂e (+${Math.abs(savingPercent)}%)`}
             </p>
             <p className="text-xs text-teal-200 mt-1">
               Per person per year when transitioning A → B
@@ -364,6 +366,7 @@ export function App() {
                   <tr className="border-b border-slate-200 font-mono uppercase text-[11px] text-slate-500 bg-slate-50">
                     <th className="py-3 px-3">Activity Category</th>
                     <th className="py-3 px-3">Geographic Origin</th>
+                    <th className="py-3 px-3">Factor Type</th>
                     <th className="py-3 px-3">Conversion Factor</th>
                     <th className="py-3 px-3">Unit</th>
                     <th className="py-3 px-3">Published Reference Source</th>
@@ -378,6 +381,9 @@ export function App() {
                       </td>
                       <td className="py-3 px-3 font-mono text-slate-700">
                         {row.geographicOrigin}
+                      </td>
+                      <td className="py-3 px-3 font-mono text-[11px] text-teal-900">
+                        {row.factorType}
                       </td>
                       <td className="py-3 px-3 font-mono font-bold text-teal-800">
                         {row.factorValue}
