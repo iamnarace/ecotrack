@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.1] - 2026-10-20
+
+### Changed
+- **Regional Inventory Presets & Verified 2024 Factors:** Added selectable regional presets (`uk`, `us`, `eu`, `au`) aligned with UK DESNZ 2024 (`0.207 kg/kWh`), US EPA GHG Emission Factors Hub 2024 (`0.352 kg/kWh`, Passenger Car `0.190 kg/km`), EEA EU-27 2024 (`0.210 kg/kWh`), and Australian DCCEEW NGA 2024 (`0.650 kg/kWh` national Scope 2 average, `0.186 kg/kWh` natural gas).
+- **Dynamic EV & Electricity Consistency:** Computed BEV operational emissions (`kg CO₂e/km`) dynamically from regional BEV energy consumption (`kWh/km`) multiplied by the scenario's effective electricity emission factor.
+- **Explicit Factor Classifications & Geographic Origins:** Added `Geographic Origin` and `Factor Type` (`Regional Inventory Average`, `Derived Operational Estimate`, `Global Lifecycle Estimate`) across all 9 methodology citation rows.
+- **Report Delta Formatting:** Fixed net-change sign formatting in Markdown reports and KPI cards when Scenario B exceeds Scenario A.
+
 ## [1.0.0] - 2026-10-20
 
 ### Added

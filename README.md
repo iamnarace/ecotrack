@@ -47,13 +47,13 @@ Carbon calculators often act as opaque black boxes that output a single number w
 - **Framework:** React 18 + TypeScript 5
 - **Styling:** Tailwind CSS (Teal, Slate & Amber environmental data visualization theme)
 - **Icons:** Lucide React
-- **Build & Test:** Vite 5, Vitest, React Testing Library, ESLint
+- **Build & Test:** Vite 6, Vitest 4, React Testing Library, ESLint
 
 ---
 
 ## Requirements & Installation
 
-- **Node.js:** v18.18+ or v20+
+- **Node.js:** v20+ LTS recommended (v18.18+ supported for build/runtime)
 - **npm:** v9+
 
 ```bash
@@ -92,9 +92,9 @@ EcoTrack computes annual per-capita educational estimates using deterministic li
 | Regional Preset | Geographic Origin | Grid Factor (`kg CO₂e/kWh`) | Petrol Car (`kg/km`) | EV Consumption (`kWh/km`) | Primary Published Source |
 | :--- | :--- | :---: | :---: | :---: | :--- |
 | **United Kingdom** (`uk`) | UK National Inventory | `0.207` | `0.170` | `0.180` | UK DESNZ / DEFRA GHG Conversion Factors (2024) |
-| **United States** (`us`) | US National eGRID & Fleet | `0.386` | `0.249` | `0.195` | US EPA eGRID & GHG Emission Factors Hub (2024) |
-| **European Union** (`eu`) | EU-27 Member States Average | `0.251` | `0.164` | `0.175` | European Environment Agency (EEA) & EC JRC (2024) |
-| **Australia** (`au`) | Australia NEM & National Inventory | `0.630` | `0.198` | `0.185` | Australian DCCEEW National Greenhouse Accounts (2024) |
+| **United States** (`us`) | US National eGRID & Fleet | `0.352` | `0.190` | `0.195` | US EPA eGRID & GHG Emission Factors Hub (2024) |
+| **European Union** (`eu`) | EU-27 Member States Average | `0.210` | `0.164` | `0.175` | European Environment Agency (EEA) & EC JRC (2024) |
+| **Australia** (`au`) | Australia NEM & National Inventory | `0.650` | `0.198` | `0.185` | Australian DCCEEW National Greenhouse Accounts (2024) |
 
 - **Consistent EV & Electricity Modeling:** Battery Electric Vehicle (BEV) operational emissions (`kg CO₂e / km`) are calculated dynamically from the selected region's BEV energy consumption (`kWh / km`) multiplied by the scenario's effective electricity emission factor (`renewShare × 0.02 + (1 - renewShare) × regionalGridFactor`). Changing the regional preset or the renewable electricity tariff share updates both household electricity and EV commuting emissions consistently.
 - **Global / Transboundary Factors:** Commercial aviation (`150 / 195 kg CO₂e / flight hour`, ICAO Carbon Emissions Calculator) and dietary supply chain profiles (`950 – 2,500 kg CO₂e / person / year`, Poore & Nemecek 2018 / IPCC AR6 WGIII) are explicitly labeled with their international/global meta-analysis origin in the **Methodology & Citations** table.
@@ -139,7 +139,8 @@ ecotrack/
 
 ## Roadmap
 
-- [ ] Regional electricity grid factor presets (EU, US eGRID subregions, Australia NEM, UK)
+- [x] Regional electricity grid factor presets (EU-27 EEA, US EPA eGRID, Australia DCCEEW NGA, UK DESNZ)
+- [ ] Sub-national US eGRID subregion and Australian state (NEM/SWIS) selector
 - [ ] Rooftop solar & home battery self-consumption estimator
 - [ ] CSV multi-scenario export
 
