@@ -3,6 +3,10 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import {
   BASELINE_SCENARIO,
   TARGET_SCENARIO,
+  REGIONAL_PRESETS,
+  getCitationTableForRegion,
+  calculateEffectiveElectricityFactor,
+  calculateEvKgPerKm,
   calculateScenarioFootprint,
   generateReductionPathways,
   buildMarkdownReport,
@@ -60,5 +64,76 @@ describe('EcoTrack Carbon Footprint Simulator & Methodology Tests', () => {
     expect(
       screen.getByText(/Calculation Methodology, Assumptions & Published Sources/i)
     ).toBeInTheDocument();
+  });
+
+  it('scales EV transport emissions consistently with renewable electricity share and regional grid presets', () => {
+    const evScenario = {
+      ...BASELINE_SCENARIO,
+      carPetrolKmPerWeek: 0,
+      publicTransitKmPerWeek: 0,
+      evKmPerWeek: 200,
+    };
+
+    const ukGridZeroRenew = calculateScenarioFootprint(
+      { ...evScenario, renewableElectricityPercent: 0 },
+      'uk'
+    );
+    const ukFullRenew = calculateScenarioFootprint(
+      { ...evScenario, renewableElectricityPercent: 100 },
+      'uk'
+    );
+    const auGridZeroRenew = calculateScenarioFootprint(
+      { ...evScenario, renewableElectricityPercent: 0 },
+      'au'
+    );
+
+    // 1. Increasing renewable electricity % reduces EV transport emissions proportionally
+    expect(ukFullRenew.effectiveEvKgPerKm).toBeLessThan(ukGridZeroRenew.effectiveEvKgPerKm);
+    expect(ukFullRenew.surfaceTransportKg).toBeLessThan(ukGridZeroRenew.surfaceTransportKg);
+
+    // Verify exact formula: evConsumptionKwhPerKm * effectiveElectricityFactor
+    const expectedUkEvZero =
+      REGIONAL_PRESETS.uk.evConsumptionKwhPerKm *
+      calculateEffectiveElectricityFactor('uk', 0);
+    expect(calculateEvKgPerKm('uk', 0)).toBeCloseTo(expectedUkEvZero, 5);
+
+    // 2. Higher-carbon regional grid (Australia 0.630 kg/kWh vs UK 0.207 kg/kWh) yields higher unblended EV emissions
+    expect(auGridZeroRenew.effectiveEvKgPerKm).toBeGreaterThan(
+      ukGridZeroRenew.effectiveEvKgPerKm
+    );
+    expect(auGridZeroRenew.surfaceTransportKg).toBeGreaterThan(
+      ukGridZeroRenew.surfaceTransportKg
+    );
+  });
+
+  it('documents explicit geographic origins for every emission factor and updates UI when switching regional presets', () => {
+    for (const regionId of ['uk', 'us', 'eu', 'au'] as const) {
+      const citations = getCitationTableForRegion(regionId, 25);
+      expect(citations.length).toBeGreaterThanOrEqual(7);
+      for (const row of citations) {
+        expect(row.geographicOrigin.length).toBeGreaterThan(5);
+        expect(row.sourceReference.length).toBeGreaterThan(10);
+      }
+      // Regional grid & transport rows carry the selected preset's exact geographic origin
+      const gridRow = citations.find((r) => r.id === 'ef-elec');
+      expect(gridRow?.geographicOrigin).toBe(REGIONAL_PRESETS[regionId].geographicOrigin);
+    }
+
+    render(<App />);
+    const ukBaselineText = screen.getByTestId('baseline-total').textContent;
+
+    const regionSelect = screen.getByLabelText(/Regional emission factor preset/i);
+    fireEvent.change(regionSelect, { target: { value: 'au' } });
+
+    const auBaselineText = screen.getByTestId('baseline-total').textContent;
+    expect(auBaselineText).not.toBe(ukBaselineText);
+
+    // Switch to Methodology & Citations and verify explicit Geographic Origin column & Australian NGA citation
+    fireEvent.click(screen.getByRole('button', { name: /Methodology & Citations/i }));
+    expect(screen.getByText(/Geographic Origin/i)).toBeInTheDocument();
+    expect(
+      screen.getAllByText(/Australia \(National Electricity Market & National Inventory\)/i)
+        .length
+    ).toBeGreaterThan(0);
   });
 });

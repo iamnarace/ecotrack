@@ -16,9 +16,11 @@ import {
 import {
   ActivityScenarioInput,
   DietaryPattern,
+  RegionPresetId,
+  REGIONAL_PRESETS,
   BASELINE_SCENARIO,
   TARGET_SCENARIO,
-  CITATION_TABLE,
+  getCitationTableForRegion,
   calculateScenarioFootprint,
   generateReductionPathways,
   buildMarkdownReport,
@@ -28,6 +30,7 @@ type ViewMode = 'simulator' | 'methodology';
 
 export function App() {
   const [viewMode, setViewMode] = useState<ViewMode>('simulator');
+  const [regionId, setRegionId] = useState<RegionPresetId>('uk');
   const [baseline, setBaseline] = useState<ActivityScenarioInput>(BASELINE_SCENARIO);
   const [target, setTarget] = useState<ActivityScenarioInput>(TARGET_SCENARIO);
   const [activeEditor, setActiveEditor] = useState<'baseline' | 'target'>('baseline');
@@ -41,22 +44,30 @@ export function App() {
     }
   }, []);
 
+  const activeRegionPreset = REGIONAL_PRESETS[regionId];
+
   const baseFootprint = useMemo(
-    () => calculateScenarioFootprint(baseline),
-    [baseline]
+    () => calculateScenarioFootprint(baseline, regionId),
+    [baseline, regionId]
   );
   const targetFootprint = useMemo(
-    () => calculateScenarioFootprint(target),
-    [target]
+    () => calculateScenarioFootprint(target, regionId),
+    [target, regionId]
   );
 
   const recommendations = useMemo(
-    () => generateReductionPathways(baseline),
-    [baseline]
+    () => generateReductionPathways(baseline, regionId),
+    [baseline, regionId]
   );
 
   const currentModel = activeEditor === 'baseline' ? baseline : target;
   const setCurrentModel = activeEditor === 'baseline' ? setBaseline : setTarget;
+  const currentFootprint = activeEditor === 'baseline' ? baseFootprint : targetFootprint;
+
+  const citationRows = useMemo(
+    () => getCitationTableForRegion(regionId, currentModel.renewableElectricityPercent),
+    [regionId, currentModel.renewableElectricityPercent]
+  );
 
   const annualSavingKg =
     baseFootprint.perCapitaAnnualKg - targetFootprint.perCapitaAnnualKg;
@@ -102,9 +113,10 @@ export function App() {
   };
 
   const handleResetScenarios = () => {
+    setRegionId('uk');
     setBaseline(BASELINE_SCENARIO);
     setTarget(TARGET_SCENARIO);
-    setStatusNotice('Restored default Baseline and Low-Carbon Transition scenarios.');
+    setStatusNotice('Restored default UK regional preset, Baseline, and Low-Carbon Transition scenarios.');
   };
 
   const comparisonRows = [
@@ -176,6 +188,28 @@ export function App() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1.5">
+              <label
+                htmlFor="region-preset-select"
+                className="text-xs font-mono text-slate-600"
+              >
+                Region:
+              </label>
+              <select
+                id="region-preset-select"
+                aria-label="Regional emission factor preset"
+                value={regionId}
+                onChange={(e) => setRegionId(e.target.value as RegionPresetId)}
+                className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-800 border border-slate-300 cursor-pointer"
+              >
+                {Object.values(REGIONAL_PRESETS).map((preset) => (
+                  <option key={preset.id} value={preset.id}>
+                    {preset.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <div className="inline-flex rounded-xl bg-slate-100 p-1 border border-slate-200">
               <button
                 type="button"
@@ -229,7 +263,8 @@ export function App() {
         <div className="p-3.5 rounded-xl bg-teal-50/90 border border-teal-200 text-teal-950 text-xs flex items-start gap-2.5">
           <Info className="w-4 h-4 text-teal-700 shrink-0 mt-0.5" />
           <div>
-            <strong>Educational Estimation Scope:</strong> Figures are modeled locally using published average conversion factors (UK DESNZ / DEFRA, US EPA, and IPCC AR6). They are designed for scenario comparison and sustainability education, not certified regulatory accounting or live grid telemetry.
+            <strong>Educational Estimation Scope ({activeRegionPreset.shortLabel}):</strong> Figures are order-of-magnitude educational estimates for scenario comparison, not precise personal carbon measurements, smart-meter telemetry, or certified GHG audits. Regional grid ({activeRegionPreset.gridElectricityKgPerKwh.toFixed(3)} kg CO₂e/kWh), EV charging, transport, and gas factors come from{' '}
+            <strong>{activeRegionPreset.sourceAuthority}</strong> ({activeRegionPreset.geographicOrigin}); aviation (ICAO) and diet (Poore &amp; Nemecek 2018 / IPCC AR6) use global meta-analysis factors.
           </div>
         </div>
 
@@ -328,6 +363,7 @@ export function App() {
                 <thead>
                   <tr className="border-b border-slate-200 font-mono uppercase text-[11px] text-slate-500 bg-slate-50">
                     <th className="py-3 px-3">Activity Category</th>
+                    <th className="py-3 px-3">Geographic Origin</th>
                     <th className="py-3 px-3">Conversion Factor</th>
                     <th className="py-3 px-3">Unit</th>
                     <th className="py-3 px-3">Published Reference Source</th>
@@ -335,10 +371,13 @@ export function App() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {CITATION_TABLE.map((row) => (
+                  {citationRows.map((row) => (
                     <tr key={row.id} className="hover:bg-slate-50/70">
                       <td className="py-3 px-3 font-semibold text-slate-900">
                         {row.activity}
+                      </td>
+                      <td className="py-3 px-3 font-mono text-slate-700">
+                        {row.geographicOrigin}
                       </td>
                       <td className="py-3 px-3 font-mono font-bold text-teal-800">
                         {row.factorValue}
@@ -465,6 +504,12 @@ export function App() {
                         }
                         className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white font-mono"
                       />
+                      <span
+                        data-testid="effective-ev-factor"
+                        className="block text-[10px] font-mono text-teal-800 mt-1"
+                      >
+                        Effective EV: {currentFootprint.effectiveEvKgPerKm.toFixed(3)} kg CO₂e/km (at {currentModel.renewableElectricityPercent}% renewable)
+                      </span>
                     </div>
                     <div>
                       <label htmlFor="input-transit" className="block text-slate-600 mb-1">
@@ -541,8 +586,11 @@ export function App() {
                     <span className="flex items-center gap-1.5">
                       <Zap className="w-4 h-4 text-amber-600" /> Monthly Household Energy
                     </span>
-                    <span className="font-mono text-[11px] text-slate-500">
-                      Household Size: {currentModel.householdSize}
+                    <span
+                      data-testid="effective-elec-factor"
+                      className="font-mono text-[11px] text-slate-500"
+                    >
+                      Household Size: {currentModel.householdSize} • Effective Grid: {currentFootprint.effectiveElectricityKgPerKwh.toFixed(3)} kg/kWh
                     </span>
                   </div>
                   <div className="grid grid-cols-3 gap-2.5">

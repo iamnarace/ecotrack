@@ -85,19 +85,19 @@ npm run build
 
 ---
 
-## Calculation Methodology & Published Sources
+## Calculation Methodology, Regional Presets & Published Sources
 
-EcoTrack computes annual per-capita emissions using deterministic linear conversion factors:
+EcoTrack computes annual per-capita educational estimates using deterministic linear conversion factors. To avoid silently mixing national grids and vehicle fleets, EcoTrack provides four official **Regional Inventory Presets** for electricity, EV charging, surface transport, and mains natural gas:
 
-| Activity Category | Factor | Unit | Published Source Reference |
-| :--- | :---: | :---: | :--- |
-| **Petrol / Gasoline Car** | `0.170` | `kg CO₂e / km` | UK DESNZ / DEFRA Greenhouse Gas Conversion Factors |
-| **Battery Electric Vehicle** | `0.050` | `kg CO₂e / km` | UK DESNZ / IEA Global EV Outlook (mixed grid charging) |
-| **Public Transit (Rail/Bus)** | `0.040` | `kg CO₂e / p-km` | UK DESNZ / US EPA Emission Factors Hub |
-| **Commercial Aviation** | `150 / 195` | `kg CO₂e / hr` | ICAO Carbon Emissions Calculator & DEFRA (Short / Long haul) |
-| **Grid Electricity** | `0.380` | `kg CO₂e / kWh` | IEA / US EPA eGRID & OECD Reference Average |
-| **Mains Natural Gas** | `0.183` | `kg CO₂e / kWh` | UK DESNZ / US EPA Stationary Combustion |
-| **Dietary Profiles** | `950 – 2,500` | `kg CO₂e / yr` | Poore & Nemecek (2018), *Science* / IPCC AR6 WGIII |
+| Regional Preset | Geographic Origin | Grid Factor (`kg CO₂e/kWh`) | Petrol Car (`kg/km`) | EV Consumption (`kWh/km`) | Primary Published Source |
+| :--- | :--- | :---: | :---: | :---: | :--- |
+| **United Kingdom** (`uk`) | UK National Inventory | `0.207` | `0.170` | `0.180` | UK DESNZ / DEFRA GHG Conversion Factors (2024) |
+| **United States** (`us`) | US National eGRID & Fleet | `0.386` | `0.249` | `0.195` | US EPA eGRID & GHG Emission Factors Hub (2024) |
+| **European Union** (`eu`) | EU-27 Member States Average | `0.251` | `0.164` | `0.175` | European Environment Agency (EEA) & EC JRC (2024) |
+| **Australia** (`au`) | Australia NEM & National Inventory | `0.630` | `0.198` | `0.185` | Australian DCCEEW National Greenhouse Accounts (2024) |
+
+- **Consistent EV & Electricity Modeling:** Battery Electric Vehicle (BEV) operational emissions (`kg CO₂e / km`) are calculated dynamically from the selected region's BEV energy consumption (`kWh / km`) multiplied by the scenario's effective electricity emission factor (`renewShare × 0.02 + (1 - renewShare) × regionalGridFactor`). Changing the regional preset or the renewable electricity tariff share updates both household electricity and EV commuting emissions consistently.
+- **Global / Transboundary Factors:** Commercial aviation (`150 / 195 kg CO₂e / flight hour`, ICAO Carbon Emissions Calculator) and dietary supply chain profiles (`950 – 2,500 kg CO₂e / person / year`, Poore & Nemecek 2018 / IPCC AR6 WGIII) are explicitly labeled with their international/global meta-analysis origin in the **Methodology & Citations** table.
 
 ---
 
